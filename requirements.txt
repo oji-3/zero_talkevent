@@ -1,0 +1,11 @@
+bs4
+selenium
+requests
+streamlit
+pandas
+matplotlib
+japanize-matplotlib
+flask
+plotly
+pytz
+aiohttp
