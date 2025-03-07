@@ -93,6 +93,18 @@ st.markdown("""
         text-align: center;
         padding: 8px 0px;
     }
+    /* 枠の完売数ラベルのスタイル */
+    .sold-out-count {
+        display: block;
+        font-size: 11px;
+        font-weight: bold;
+        background-color: #dc3545;
+        color: white;
+        padding: 2px 4px;
+        border-radius: 4px;
+        margin-bottom: 4px;
+        text-align: center;
+    }
     /* オレンジ文字(混雑時間帯)を黒文字と同じ方向にする */
     .crowded-label {
         writing-mode: vertical-rl;
@@ -375,9 +387,9 @@ def main():
         status_placeholder.empty()
     
     # フィルターUI
-    st.markdown('<div class="filter-label">グループで絞り込む:</div>', unsafe_allow_html=True)
+    st.markdown('<div class="filter-label">リーグで絞り込む:</div>', unsafe_allow_html=True)
     selected_group = st.selectbox(
-        label="グループ選択",
+        label="リーグ選択",
         options=list(member_groups.keys()),
         index=0,
         label_visibility="collapsed",
@@ -423,9 +435,6 @@ def main():
             for name in filtered_member_names
         }
         
-        # ヘッダー行
-        table_html += "<tr><th>メンバー名</th>"
-
         # 特殊制御のための「18:00-18:15」〜「21:45-22:00」までの枠をすべて売った人のカウント
         members_sold_all_regular_slots = 0
         
@@ -449,6 +458,54 @@ def main():
             if has_regular_slots and all_regular_slots_sold:
                 members_sold_all_regular_slots += 1
 
+        # メンバー名からグループを取得するための辞書を作成
+        member_groups_map = {}
+        for group_name, members in member_groups.items():
+            if group_name != "すべて":  # "すべて"は実際のグループではないのでスキップ
+                for member in members:
+                    member_groups_map[member["name"]] = group_name
+
+        # 時間帯ごとの完売数をカウント
+        sold_out_counts = {}
+        for time_slot in sorted_time_slots:
+            # 各時間帯の完売数をカウント
+            slot_sold_out_count = 0
+            
+            # 15:00-18:00の時間帯は特殊な判定
+            if is_early_time_slot(time_slot):
+                # 15:00-18:00の時間帯は「18時以降全て完売」かつ「その枠が×」のメンバーをカウント
+                for m_name, m_data in st.session_state.inventory_data_all.items():
+                    # U17グループのメンバーは特殊判定から除外
+                    is_u17_member = member_groups_map.get(m_name) == "U17"
+                    
+                    if is_u17_member:
+                        # U17メンバーは通常のカウント（15:00-18:00も普通に×ならカウント）
+                        if time_slot in m_data and m_data[time_slot] == "×":
+                            slot_sold_out_count += 1
+                    else:
+                        # U17以外のメンバーは特殊判定
+                        # 18時以降の全ての枠が完売しているかチェック
+                        all_regular_slots_sold = True
+                        has_regular_slots = False
+                        
+                        for reg_time_slot in sorted_time_slots:
+                            if is_regular_time_slot(reg_time_slot):
+                                has_regular_slots = True
+                                if reg_time_slot not in m_data or m_data[reg_time_slot] != "×":
+                                    all_regular_slots_sold = False
+                                    break
+                        
+                        # 18時以降の枠が全て完売していて、かつこの時間帯も×の場合のみカウント
+                        if has_regular_slots and all_regular_slots_sold and time_slot in m_data and m_data[time_slot] == "×":
+                            slot_sold_out_count += 1
+            else:
+                # 18:00以降の時間帯は通常の判定
+                for m_name, m_data in st.session_state.inventory_data_all.items():
+                    if time_slot in m_data and m_data[time_slot] == "×":
+                        slot_sold_out_count += 1
+            
+            sold_out_counts[time_slot] = slot_sold_out_count
+
         # 混雑時間帯の判定
         crowded_time_slots = {}
         for time_slot in sorted_time_slots:
@@ -457,12 +514,10 @@ def main():
                 crowded_time_slots[time_slot] = (members_sold_all_regular_slots >= 15)
             else:
                 # 通常の混雑判定: 15人以上が売り切れの場合は混雑マーク
-                all_sold_out_count = 0
-                for m_name, m_data in st.session_state.inventory_data_all.items():
-                    if time_slot in m_data and m_data[time_slot] == "×":
-                        all_sold_out_count += 1
-                
-                crowded_time_slots[time_slot] = (all_sold_out_count >= 15)
+                crowded_time_slots[time_slot] = (sold_out_counts[time_slot] >= 15)
+
+        # ヘッダー行
+        table_html += "<tr><th>メンバー名</th>"
 
         # 時間帯ヘッダーを表示
         for time_slot in sorted_time_slots:
@@ -474,7 +529,10 @@ def main():
             else:
                 time_slot_display = time_slot
             
-            table_html += f'<th class="{header_class}">{time_slot_display}</th>'
+            # 完売数ラベルを追加
+            sold_out_count = sold_out_counts[time_slot]
+            table_html += f'<th class="{header_class}"><span class="sold-out-count">{sold_out_count}</span>{time_slot_display}</th>'
+        
         table_html += "</tr>"
         
         # データ行
@@ -498,7 +556,7 @@ def main():
         st.markdown('</div>', unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
     else:
-        st.warning(f"選択されたグループ '{selected_group}' にはメンバーがいません。")
+        st.warning(f"選択されたリーグ '{selected_group}' にはメンバーがいません。")
 
 if __name__ == "__main__":
     main()
