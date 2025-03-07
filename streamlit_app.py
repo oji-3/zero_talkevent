@@ -102,12 +102,18 @@ st.markdown("""
         display: block;
         font-size: 11px;
         font-weight: bold;
-        background-color: #dc3545;
+        background-color: #212529;
         color: white;
         padding: 2px 4px;
         border-radius: 4px;
         margin-bottom: 6px;
         text-align: center;
+    }
+    
+    /* 混雑時間帯の完売数ラベルのスタイル */
+    .sold-out-count.crowded {
+        background-color: #fd7e14;
+        color: black;
     }
     
     /* 数字だけを回転させる */
@@ -124,6 +130,20 @@ st.markdown("""
         display: inline;
         color: #fd7e14;
         font-weight: bold;
+    }
+    /* メンバー売上数ラベル */
+    .member-sales-count {
+        display: inline-block;
+        font-size: 11px;
+        font-weight: bold;
+        background-color: #212529;
+        color: white;
+        padding: 2px 5px;
+        border-radius: 4px;
+        margin-left: 5px;
+        text-align: center;
+        float: right;
+        min-width: 20px;
     }
     table {
         border-collapse: collapse;
@@ -488,9 +508,6 @@ def main():
         # 凡例の表示
         st.markdown("""
 <div class="footnote" style="margin-bottom: 15px;">
-    <span class="legend-item"><span style="color: #dc3545; font-weight: bold;">×</span> : 完売</span>
-    <span class="legend-item"><span style="color: #198754; font-weight: bold;">⚪︎</span> : 残りわずか</span>
-    <span class="legend-item"><span style="color: #6c757d; font-weight: bold;">🔒</span> : 18時以降全て完売していないため予約不可</span>
     <span class="legend-item"><span style="color: #fd7e14; font-weight: bold;">オレンジ</span> : 混雑(15人以上)</span>
 </div>""", unsafe_allow_html=True)
         
@@ -576,9 +593,10 @@ def main():
             
             # 完売数ラベルを追加（数字のみを回転）
             sold_out_count = sold_out_counts[time_slot]
+            count_class = "sold-out-count crowded" if crowded_time_slots[time_slot] else "sold-out-count"
             table_html += (
                 f'<th class="{header_class}">'
-                f'<span class="sold-out-count">'
+                f'<span class="{count_class}">'
                 f'<span class="sold-out-count-number">{sold_out_count}</span>'
                 f'</span>'
                 f'{time_slot_display}'
@@ -586,6 +604,29 @@ def main():
             )
         
         table_html += "</tr>"
+        
+        # メンバーごとの売上数を計算（未解放はカウントしない）
+        member_sales_count = {}
+        for member_name in filtered_member_names:
+            member_data = st.session_state.inventory_data_all.get(member_name, {})
+            member_group = member_groups_map.get(member_name, "")
+            is_u17_member = (member_group == "U17")
+            sold_count = 0
+            
+            # 18時以降の枠が全て完売しているかを確認
+            all_regular_slots_sold = is_all_regular_slots_sold_out(member_data, sorted_time_slots)
+            
+            # 各時間枠をチェック
+            for time_slot, status in member_data.items():
+                # 非U17メンバーの15:00-18:00の枠で、18:00以降が全て完売していない場合は未解放枠
+                if not is_u17_member and is_early_time_slot(time_slot) and status == "×" and not all_regular_slots_sold:
+                    # 未解放枠はカウントしない
+                    continue
+                elif status == "×":
+                    # それ以外の完売枠はカウント
+                    sold_count += 1
+                    
+            member_sales_count[member_name] = sold_count
         
         # データ行
         for member_name in filtered_member_names:
@@ -595,9 +636,13 @@ def main():
             
             # リンク付きメンバー名のセル - 自動改行を適用
             formatted_name = format_member_name(member_name)
+            # 売上数を黒ラベルで表示
+            sales_count_label = f'<span class="member-sales-count">{member_sales_count[member_name]}</span>'
+            
             table_html += f'''<tr>
-                <td style="min-width: 100px; max-width: 120px; word-wrap: break-word; white-space: normal;">
+                <td style="min-width: 100px; max-width: 120px; word-wrap: break-word; white-space: normal; display: flex; align-items: center; justify-content: space-between;">
                     <a href="{member_url}" target="_blank" class="member-link">{formatted_name}</a>
+                    {sales_count_label}
                 </td>'''
             
             member_data = st.session_state.inventory_data_all.get(member_name, {})
