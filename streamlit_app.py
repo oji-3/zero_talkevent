@@ -60,6 +60,9 @@ st.markdown("""
     .last-one {
         color: #198754;
     }
+    .locked {
+        color: #6c757d;
+    }
     .crowded {
         color: #fd7e14;
     }
@@ -211,6 +214,10 @@ st.markdown("""
     .member-link:hover {
         color: #0d6efd;
         text-decoration: underline;
+    }
+    .legend-item {
+        margin-right: 15px;
+        display: inline-block;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -380,6 +387,20 @@ def is_regular_time_slot(time_slot):
     # 18:00-18:15から21:45-22:00までの時間帯
     return time_slot.startswith(("18:", "19:", "20:", "21:"))
 
+# メンバーの18:00以降の枠が全て完売しているかチェック
+def is_all_regular_slots_sold_out(member_data, sorted_time_slots):
+    all_regular_slots_sold = True
+    has_regular_slots = False
+    
+    for time_slot in sorted_time_slots:
+        if is_regular_time_slot(time_slot):
+            has_regular_slots = True
+            if time_slot not in member_data or member_data[time_slot] != "×":
+                all_regular_slots_sold = False
+                break
+    
+    return has_regular_slots and all_regular_slots_sold
+
 def main():
     # セッション状態の初期化
     initialize_session_state()
@@ -448,10 +469,6 @@ def main():
     if filtered_members:
         # 更新時間を表示
         st.markdown(f'<div class="update-time">最終更新: {st.session_state.last_update_time}</div>', unsafe_allow_html=True)
-        st.markdown("""
-<div class="footnote">
-    <span style="color: orange; font-weight: bold;">オレンジ</span> : 混雑(15人以上)
-</div>""", unsafe_allow_html=True)
         
         # 時間帯をソート
         def parse_time_range(time_range):
@@ -468,6 +485,15 @@ def main():
         # マトリクス表を作成
         st.markdown('<div class="time-container">', unsafe_allow_html=True)
         
+        # 凡例の表示
+        st.markdown("""
+<div class="footnote" style="margin-bottom: 15px;">
+    <span class="legend-item"><span style="color: #dc3545; font-weight: bold;">×</span> : 完売</span>
+    <span class="legend-item"><span style="color: #198754; font-weight: bold;">⚪︎</span> : 残りわずか</span>
+    <span class="legend-item"><span style="color: #6c757d; font-weight: bold;">🔒</span> : 18時以降全て完売していないため予約不可</span>
+    <span class="legend-item"><span style="color: #fd7e14; font-weight: bold;">オレンジ</span> : 混雑(15人以上)</span>
+</div>""", unsafe_allow_html=True)
+        
         # HTMLテーブルの作成
         table_html = "<table>"
         
@@ -483,31 +509,17 @@ def main():
         # 特殊制御のための「18:00-18:15」〜「21:45-22:00」までの枠をすべて売った人のカウント
         members_sold_all_regular_slots = 0
         
-        # すべてのメンバーに対して「18:00-18:15」〜「21:45-22:00」の枠をすべて売ったかチェック
-        for m_name, m_data in st.session_state.inventory_data_all.items():
-            # 各メンバーの「18:00-18:15」〜「21:45-22:00」の枠をチェック
-            all_regular_slots_sold = True
-            
-            # 18時以降の枠が存在するかチェック
-            has_regular_slots = False
-            
-            for time_slot in sorted_time_slots:
-                if is_regular_time_slot(time_slot):
-                    has_regular_slots = True
-                    if time_slot not in m_data or m_data[time_slot] != "×":
-                        all_regular_slots_sold = False
-                        break
-            
-            # 18時以降の枠がすべて完売しているならカウント
-            if has_regular_slots and all_regular_slots_sold:
-                members_sold_all_regular_slots += 1
-
         # メンバー名からグループを取得するための辞書を作成
         member_groups_map = {}
         for group_name, members in member_groups.items():
             if group_name != "すべて":  # "すべて"は実際のグループではないのでスキップ
                 for member in members:
                     member_groups_map[member["name"]] = group_name
+        
+        # すべてのメンバーに対して「18:00-18:15」〜「21:45-22:00」の枠をすべて売ったかチェック
+        for m_name, m_data in st.session_state.inventory_data_all.items():
+            if is_all_regular_slots_sold_out(m_data, sorted_time_slots):
+                members_sold_all_regular_slots += 1
 
         # 時間帯ごとの完売数をカウント
         sold_out_counts = {}
@@ -529,18 +541,7 @@ def main():
                     else:
                         # U17以外のメンバーは特殊判定
                         # 18時以降の枠が全て完売しているかチェック
-                        all_regular_slots_sold = True
-                        has_regular_slots = False
-                        
-                        for reg_time_slot in sorted_time_slots:
-                            if is_regular_time_slot(reg_time_slot):
-                                has_regular_slots = True
-                                if reg_time_slot not in m_data or m_data[reg_time_slot] != "×":
-                                    all_regular_slots_sold = False
-                                    break
-                        
-                        # 18時以降の枠が全て完売していて、かつこの時間帯も×の場合のみカウント
-                        if has_regular_slots and all_regular_slots_sold and time_slot in m_data and m_data[time_slot] == "×":
+                        if is_all_regular_slots_sold_out(m_data, sorted_time_slots) and time_slot in m_data and m_data[time_slot] == "×":
                             slot_sold_out_count += 1
             else:
                 # 18:00以降の時間帯は通常の判定
@@ -589,6 +590,8 @@ def main():
         # データ行
         for member_name in filtered_member_names:
             member_url = st.session_state.member_urls.get(member_name, "#")
+            member_group = member_groups_map.get(member_name, "")
+            is_u17_member = (member_group == "U17")
             
             # リンク付きメンバー名のセル - 自動改行を適用
             formatted_name = format_member_name(member_name)
@@ -598,10 +601,22 @@ def main():
                 </td>'''
             
             member_data = st.session_state.inventory_data_all.get(member_name, {})
+            
+            # 18時以降の全ての枠が完売しているかどうかを判定
+            all_regular_slots_sold = is_all_regular_slots_sold_out(member_data, sorted_time_slots)
+            
             for time_slot in sorted_time_slots:
                 status = member_data.get(time_slot, "")
-                status_class = "sold-out" if status == "×" else "last-one" if status == "⚪︎" else ""
-                table_html += f'<td class="status-icon {status_class}">{status}</td>'
+                
+                # 非U17メンバーの15:00-18:00の枠で、18:00以降が全て完売していない場合は🔒を表示
+                if not is_u17_member and is_early_time_slot(time_slot) and status == "×" and not all_regular_slots_sold:
+                    display_status = "🔒"
+                    status_class = "locked"
+                else:
+                    display_status = status
+                    status_class = "sold-out" if status == "×" else "last-one" if status == "⚪︎" else ""
+                
+                table_html += f'<td class="status-icon {status_class}">{display_status}</td>'
             
             table_html += "</tr>"
         
