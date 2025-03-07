@@ -10,6 +10,7 @@ import concurrent.futures
 from io import StringIO
 from datetime import datetime
 import pytz
+import re
 
 # ページの設定
 st.set_page_config(
@@ -102,8 +103,15 @@ st.markdown("""
         color: white;
         padding: 2px 4px;
         border-radius: 4px;
-        margin-bottom: 4px;
+        margin-bottom: 6px;
         text-align: center;
+    }
+    
+    /* 数字だけを回転させる */
+    .sold-out-count-number {
+        display: inline-block;
+        transform: rotate(90deg);
+        transform-origin: center center;
     }
     /* オレンジ文字(混雑時間帯)を黒文字と同じ方向にする */
     .crowded-label {
@@ -134,6 +142,8 @@ st.markdown("""
         left: 0;
         z-index: 2;
         background-color: #f2f2f2;
+        min-width: 100px; 
+        max-width: 120px;
     }
     td:first-child {
         position: sticky;
@@ -141,6 +151,12 @@ st.markdown("""
         background-color: #f2f2f2;
         font-weight: bold;
         z-index: 1;
+        max-width: 100px;      /* セルの最大幅を制限 */
+        word-wrap: break-word; /* 長い単語も折り返し */
+        white-space: normal;   /* テキストを折り返し */
+        text-align: left;      /* 左寄せ */
+        line-height: 1.3;      /* 行間を少し狭く */
+        min-width: 100px;
     }
     .time-container {
         max-height: 80vh;
@@ -187,6 +203,10 @@ st.markdown("""
         color: #212529;
         text-decoration: none;
         cursor: pointer;
+        word-break: keep-all;  /* 単語の途中での改行を防ぐ */
+        display: inline-block; /* インラインブロック要素として表示 */
+        max-width: 90px;       /* リンク要素の最大幅 */
+        word-wrap: break-word; /* 長い単語も折り返し */
     }
     .member-link:hover {
         color: #0d6efd;
@@ -200,6 +220,31 @@ jst = pytz.timezone('Asia/Tokyo')
 
 # アプリのヘッダー
 st.markdown('<div class="header"><h1>完売表</h1></div>', unsafe_allow_html=True)
+
+def format_member_name(name):
+    """
+    メンバー名を自動的に改行して表示しやすくする
+    特に長いメンバー名や、半角・全角の混在する名前に対応
+    """
+    # 名前にスペースがある場合はそこで分割
+    if ' ' in name:
+        return name.replace(' ', '<br>')
+    
+    # 日本語の姓名が明確に分かれている場合（例：苗字 名前）
+    if '　' in name:  # 全角スペースで分割
+        return name.replace('　', '<br>')
+    
+    # 漢字とカタカナ/ひらがなの境目で分割（例：三崎桃果 → 三崎<br>桃果）
+    match = re.search(r'([一-龯々]+)([ぁ-んァ-ヶ]+)', name)
+    if match:
+        return f"{match.group(1)}<br>{match.group(2)}"
+    
+    # 姓と名が分からない場合で、名前が長い場合は適当な位置で改行
+    if len(name) > 4:
+        mid = len(name) // 2
+        return f"{name[:mid]}<br>{name[mid:]}"
+    
+    return name
 
 def parse_member_groups():
     """
@@ -449,12 +494,11 @@ def main():
             for time_slot in sorted_time_slots:
                 if is_regular_time_slot(time_slot):
                     has_regular_slots = True
-                    # この時間帯のデータがないか、売り切れではない場合
                     if time_slot not in m_data or m_data[time_slot] != "×":
                         all_regular_slots_sold = False
                         break
             
-            # 18時以降の枠がすべて売り切れならカウント
+            # 18時以降の枠がすべて完売しているならカウント
             if has_regular_slots and all_regular_slots_sold:
                 members_sold_all_regular_slots += 1
 
@@ -484,7 +528,7 @@ def main():
                             slot_sold_out_count += 1
                     else:
                         # U17以外のメンバーは特殊判定
-                        # 18時以降の全ての枠が完売しているかチェック
+                        # 18時以降の枠が全て完売しているかチェック
                         all_regular_slots_sold = True
                         has_regular_slots = False
                         
@@ -517,7 +561,7 @@ def main():
                 crowded_time_slots[time_slot] = (sold_out_counts[time_slot] >= 15)
 
         # ヘッダー行
-        table_html += "<tr><th>メンバー名</th>"
+        table_html += "<tr><th style='min-width: 100px; max-width: 120px;'>メンバー名</th>"
 
         # 時間帯ヘッダーを表示
         for time_slot in sorted_time_slots:
@@ -529,9 +573,16 @@ def main():
             else:
                 time_slot_display = time_slot
             
-            # 完売数ラベルを追加
+            # 完売数ラベルを追加（数字のみを回転）
             sold_out_count = sold_out_counts[time_slot]
-            table_html += f'<th class="{header_class}"><span class="sold-out-count">{sold_out_count}</span>{time_slot_display}</th>'
+            table_html += (
+                f'<th class="{header_class}">'
+                f'<span class="sold-out-count">'
+                f'<span class="sold-out-count-number">{sold_out_count}</span>'
+                f'</span>'
+                f'{time_slot_display}'
+                f'</th>'
+            )
         
         table_html += "</tr>"
         
@@ -539,8 +590,12 @@ def main():
         for member_name in filtered_member_names:
             member_url = st.session_state.member_urls.get(member_name, "#")
             
-            # リンク付きメンバー名のセル
-            table_html += f'<tr><td><a href="{member_url}" target="_blank" class="member-link">{member_name}</a></td>'
+            # リンク付きメンバー名のセル - 自動改行を適用
+            formatted_name = format_member_name(member_name)
+            table_html += f'''<tr>
+                <td style="min-width: 100px; max-width: 120px; word-wrap: break-word; white-space: normal;">
+                    <a href="{member_url}" target="_blank" class="member-link">{formatted_name}</a>
+                </td>'''
             
             member_data = st.session_state.inventory_data_all.get(member_name, {})
             for time_slot in sorted_time_slots:
