@@ -138,12 +138,10 @@ st.markdown("""
         font-weight: bold;
         background-color: #212529;
         color: white;
-        padding: 2px 5px;
+        padding: 3px 6px;
         border-radius: 4px;
-        margin-left: 5px;
         text-align: center;
-        float: right;
-        min-width: 20px;
+        min-width: 16px;
     }
     table {
         border-collapse: collapse;
@@ -153,6 +151,10 @@ st.markdown("""
         border: 1px solid #ddd;
         padding: 8px;
         text-align: center;
+        line-height: 1.2;
+    }
+    tr {
+        height: 50px; /* すべての行に固定の高さを設定 */
     }
     th {
         background-color: #f2f2f2;
@@ -172,14 +174,11 @@ st.markdown("""
         position: sticky;
         left: 0;
         background-color: #f2f2f2;
-        font-weight: bold;
         z-index: 1;
-        max-width: 100px;      /* セルの最大幅を制限 */
-        word-wrap: break-word; /* 長い単語も折り返し */
-        white-space: normal;   /* テキストを折り返し */
-        text-align: left;      /* 左寄せ */
-        line-height: 1.3;      /* 行間を少し狭く */
-        min-width: 100px;
+        min-width: 110px;
+        max-width: 130px;
+        padding: 8px;
+        vertical-align: middle;
     }
     .time-container {
         max-height: 80vh;
@@ -226,10 +225,10 @@ st.markdown("""
         color: #212529;
         text-decoration: none;
         cursor: pointer;
-        word-break: keep-all;  /* 単語の途中での改行を防ぐ */
-        display: inline-block; /* インラインブロック要素として表示 */
-        max-width: 90px;       /* リンク要素の最大幅 */
-        word-wrap: break-word; /* 長い単語も折り返し */
+        word-break: keep-all;
+        word-wrap: break-word;
+        display: block;
+        padding: 4px 0;
     }
     .member-link:hover {
         color: #0d6efd;
@@ -509,6 +508,7 @@ def main():
         st.markdown("""
 <div class="footnote" style="margin-bottom: 15px;">
     <span class="legend-item"><span style="color: #fd7e14; font-weight: bold;">オレンジ</span> : 混雑(15人以上)</span>
+    <span class="legend-item">黒ラベル : メンバー別売上数</span>
 </div>""", unsafe_allow_html=True)
         
         # HTMLテーブルの作成
@@ -640,9 +640,11 @@ def main():
             sales_count_label = f'<span class="member-sales-count">{member_sales_count[member_name]}</span>'
             
             table_html += f'''<tr>
-                <td style="min-width: 100px; max-width: 120px; word-wrap: break-word; white-space: normal; display: flex; align-items: center; justify-content: space-between;">
+                <td style="text-align: left; position: relative; padding-right: 40px;">
                     <a href="{member_url}" target="_blank" class="member-link">{formatted_name}</a>
-                    {sales_count_label}
+                    <div style="position: absolute; top: 50%; right: 8px; transform: translateY(-50%);">
+                        {sales_count_label}
+                    </div>
                 </td>'''
             
             member_data = st.session_state.inventory_data_all.get(member_name, {})
