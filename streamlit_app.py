@@ -4,6 +4,7 @@ import time
 from datetime import datetime
 import pytz
 
+# カスタムモジュールのインポート
 from styles.styles import load_css
 from utils.data_loader import parse_member_groups, create_member_url_map, create_member_group_map
 from utils.time_utils import is_early_time_slot, is_regular_time_slot, is_all_regular_slots_sold_out, sort_time_slots
