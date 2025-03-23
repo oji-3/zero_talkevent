@@ -96,7 +96,7 @@ def merge_duplicates(input_file, output_file='members.csv'):
         with open(output_file, 'w', encoding='utf-8', newline='') as f:
             writer = csv.writer(f)
             # ヘッダー：1列目にURL（最初のURL）、2列目に1hour（2番目のURL）、3列目に名前、4列目にリーグコード
-            writer.writerow(['URL', '1hour', 'name', 'league'])
+            writer.writerow(['15min', '1hour', 'name', 'league'])
             
             # 辞書からデータを取り出して書き込む
             for name, data in member_dict.items():
