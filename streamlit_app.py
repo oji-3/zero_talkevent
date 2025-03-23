@@ -7,7 +7,7 @@ import pytz
 # カスタムモジュールのインポート
 from styles.styles import load_css
 from utils.data_loader import parse_member_groups, create_member_url_map, create_member_group_map
-from utils.time_utils import is_early_time_slot, is_regular_time_slot, is_all_regular_slots_sold_out, sort_time_slots
+from utils.time_utils import is_early_time_slot, is_regular_time_slot, is_all_regular_slots_sold_out, sort_time_slots, is_after_final_slot_deadline
 from utils.inventory import get_inventory_with_progress, calculate_sold_out_counts, calculate_member_sales_count
 from utils.ui_utils import generate_table_html, determine_crowded_time_slots, count_members_sold_all_regular_slots
 
@@ -39,6 +39,7 @@ def initialize_session_state():
         st.session_state.last_update_time = None
         # メンバーURLを格納する辞書を初期化
         st.session_state.member_urls = {}
+        st.session_state.using_final_slots = None  # 最終枠を使用するかどうかのフラグ
 
 def main():
     """
@@ -56,22 +57,27 @@ def main():
     # セッション状態に保存
     st.session_state.member_urls = member_urls
     
+    # 最終枠を使用するかどうかを確認
+    using_final_slots = not is_after_final_slot_deadline()
+    
     # 進捗状況表示用のプレースホルダー
     progress_placeholder = st.empty()
     status_placeholder = st.empty()
     
-    # 最初のロード時のみデータを取得
-    if not st.session_state.data_loaded:
+    # 最初のロード時のみデータを取得、または最終枠の使用状態が変わった場合も再取得
+    if not st.session_state.data_loaded or st.session_state.using_final_slots != using_final_slots:
         progress_bar = progress_placeholder.progress(0)
         status_text = status_placeholder.empty()
         
-        # すべてのメンバーのURLとメンバー名を取得
+        # 最終枠の使用状態を保存
+        st.session_state.using_final_slots = using_final_slots
+        
+        # すべてのメンバーのメンバー名を取得
         all_members = member_groups["すべて"]
-        urls = [member["url"] for member in all_members]
         member_names = [member["name"] for member in all_members]
         
         # 非同期処理で在庫状況を取得（進捗表示付き）
-        inventory_data = asyncio.run(get_inventory_with_progress(urls, member_names, progress_bar, status_text))
+        inventory_data = asyncio.run(get_inventory_with_progress(member_urls, member_names, progress_bar, status_text))
         
         # セッション状態に保存
         st.session_state.inventory_data_all = inventory_data
@@ -119,6 +125,9 @@ def main():
         st.markdown("""
         <div class="footnote" style="margin-bottom: 15px;">
             <span class="legend-item"><span style="color: #fd7e14; font-weight: bold;">オレンジ</span> : 混雑(15人以上)</span>
+            <span class="legend-item"><span style="color: #6c757d;">🔒</span> : 未解放枠</span>
+            <span class="legend-item"><span style="color: #dc3545;">×</span> : 完売</span>
+            <span class="legend-item"><span style="color: #198754;">⚪︎</span> : 残りわずか</span>
         </div>""", unsafe_allow_html=True)
         
         # フィルター用のメンバー名リスト
