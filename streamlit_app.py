@@ -93,7 +93,7 @@ def main():
         st.session_state.data_loaded = True
         
         # 少し待機してから進捗表示を消す
-        time.sleep(1)
+        time.sleep(0.1)
         progress_placeholder.empty()
         status_placeholder.empty()
     
