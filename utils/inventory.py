@@ -99,7 +99,7 @@ async def get_inventory_with_progress(member_urls, member_names, progress_bar, s
         results = []
         
         # タスクのチャンク作成（55並列）
-        chunk_size = 55
+        chunk_size = 70
         for i in range(0, total, chunk_size):
             chunk_urls = urls_to_fetch[i:i+chunk_size]
             
@@ -116,7 +116,7 @@ async def get_inventory_with_progress(member_urls, member_names, progress_bar, s
             progress_bar.progress(completed / total)
             
             # サーバー負荷軽減のための待機
-            await asyncio.sleep(0.2)  # 並列数を上げるので待機時間を少し短縮
+            await asyncio.sleep(0.1)  # 並列数を上げるので待機時間を少し短縮
         
         # 結果を辞書にまとめる
         inventory_data = {}
