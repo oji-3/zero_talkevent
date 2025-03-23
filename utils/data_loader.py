@@ -38,7 +38,9 @@ def format_member_name(name):
 
 def parse_member_groups():
     """
-    member.txt からメンバー情報を読み込んで、グループごとに格納する
+    member.csv からメンバー情報を読み込んで、グループごとに格納する
+    CSVの形式:
+    15min,1hour,name,league
     
     Returns:
         dict: グループ名をキー、メンバー情報リストを値とする辞書
@@ -54,41 +56,59 @@ def parse_member_groups():
         "U17": []
     }
     
-    # member.txtからデータを読み込む
-    with open('member.txt', 'r', encoding='utf-8') as f:
-        paste_data = f.read()
-
-    lines = paste_data.strip().split('\n')
-    current_group = None
-    
-    for line in lines:
-        line = line.strip()
-        if line in ["Z1", "Z2", "Z3", "Z4", "Z5", "U17"]:
-            current_group = line
-        elif line and current_group:
-            parts = line.split(',')
-            if current_group == "U17" and len(parts) == 2:
-                # U17は通常枠URLのみ
-                normal_url, member_name = parts
-                member_info = {
-                    "normal_url": normal_url, 
-                    "final_url": None,  # U17は最終枠なし
-                    "name": member_name
-                }
-                member_groups[current_group].append(member_info)
+    try:
+        # CSVファイルを直接読み込む
+        with open('members.csv', 'r', encoding='utf-8') as f:
+            lines = f.readlines()
+        
+        # ヘッダー行をスキップ (最初の行)
+        for line in lines[1:]:
+            if not line.strip():
+                continue
+                
+            # カンマで分割
+            parts = line.strip().split(',')
+            
+            # U17メンバーの検出
+            if "U17" in line:
+                # U17の形式: normal_url,,name,U17
+                if len(parts) >= 4:
+                    normal_url = parts[0]
+                    name = parts[2]
+                    league = "U17"
+                    final_url = None
+                else:
+                    print(f"U17メンバーのデータが不正: {line}")
+                    continue
+            else:
+                # 通常メンバーの形式: final_url,normal_url,name,league
+                if len(parts) >= 4:
+                    final_url = parts[0] if parts[0].strip() else None
+                    normal_url = parts[1] if parts[1].strip() else None
+                    name = parts[2]
+                    league = parts[3]
+                else:
+                    print(f"通常メンバーのデータが不正: {line}")
+                    continue
+            
+            # メンバー情報を作成
+            member_info = {
+                "normal_url": normal_url,
+                "final_url": final_url,
+                "name": name
+            }
+            
+            # リーグごとのリストに追加
+            if league in member_groups:
+                member_groups[league].append(member_info)
                 member_groups["すべて"].append(member_info)
-            elif len(parts) == 3:
-                # Z1-Z5は通常枠URLと最終枠URLがある
-                normal_url, final_url, member_name = parts
-                member_info = {
-                    "normal_url": normal_url, 
-                    "final_url": final_url, 
-                    "name": member_name
-                }
-                member_groups[current_group].append(member_info)
-                member_groups["すべて"].append(member_info)
+        
+        return member_groups
     
-    return member_groups
+    except Exception as e:
+        print(f"member.csvの読み込み中にエラーが発生しました: {e}")
+        # エラー時は空の辞書を返す
+        return {key: [] for key in member_groups.keys()}
 
 
 def create_member_url_map(member_groups):
