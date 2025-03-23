@@ -125,7 +125,7 @@ def main():
         st.markdown("""
         <div class="footnote" style="margin-bottom: 15px;">
             <span class="legend-item"><span style="color: #fd7e14; font-weight: bold;">オレンジ</span> : 混雑(15人以上)</span>
-            <span class="legend-item"><span style="color: #6c757d;">🔒</span> : 未解放枠</span>
+            <span class="legend-item"><span style="color: #6c757d;">🔒</span> : 未解放</span>
             <span class="legend-item"><span style="color: #dc3545;">×</span> : 完売</span>
             <span class="legend-item"><span style="color: #198754;">⚪︎</span> : 残りわずか</span>
         </div>""", unsafe_allow_html=True)
