@@ -33,18 +33,21 @@ async def get_inventory_status(url, session):
                 
                 for item in variation_items:
                     time_slot = item.select_one('.cot-itemOrder-variationName')
-                    stock_info = item.select_one('.cot-itemOrder-variationStock')
                     
-                    if time_slot and stock_info:
+                    if time_slot:
                         time_text = time_slot.text.strip()
-                        stock_text = stock_info.text.strip()
+                        item_text = item.text.strip()
                         
-                        if "在庫なし" in stock_text:
-                            status = "×"
-                        elif "残り1点" in stock_text:
-                            status = "⚪︎"
+                        # 再入荷通知希望または販売開始通知希望のテキストを含むかチェック
+                        if "再入荷通知希望" in item_text or "販売開始通知希望" in item_text:
+                            status = "×"  # 完売
                         else:
-                            status = "◎"  # その他の状態
+                            # 残り1点かどうかをチェック
+                            stock_info = item.select_one('.cot-itemOrder-variationStock')
+                            if stock_info and "残り1点" in stock_info.text.strip():
+                                status = "⚪︎"  # 残りわずか
+                            else:
+                                status = "◎"  # 在庫あり
                         
                         time_slots[time_text] = status
                 
@@ -53,7 +56,6 @@ async def get_inventory_status(url, session):
     except Exception as e:
         print(f"エラーが発生しました: {e}")
         return {}
-
 
 async def get_inventory_with_progress(member_urls, member_names, progress_bar, status_text):
     """
