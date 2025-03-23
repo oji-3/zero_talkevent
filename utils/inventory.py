@@ -10,16 +10,9 @@ from utils.time_utils import is_early_time_slot, is_regular_time_slot, is_after_
 async def get_inventory_status(url, session):
     """
     URLから在庫状況を取得する
-    
-    Args:
-        url (str): 在庫情報を取得するURL
-        session (aiohttp.ClientSession): HTTPセッション
-        
-    Returns:
-        dict: 時間帯と在庫状況のマッピング
     """
     try:
-        if url is None:  # U17メンバーの最終枠URLがNoneの場合
+        if url is None:
             return {}
             
         async with session.get(url) as response:
@@ -27,7 +20,6 @@ async def get_inventory_status(url, session):
                 html = await response.text()
                 soup = BeautifulSoup(html, 'html.parser')
                 
-                # 時間帯ごとの在庫情報を取得
                 time_slots = {}
                 variation_items = soup.select('.cot-itemOrder-variationLI')
                 
@@ -38,8 +30,11 @@ async def get_inventory_status(url, session):
                         time_text = time_slot.text.strip()
                         item_text = item.text.strip()
                         
-                        # 再入荷通知希望または販売開始通知希望のテキストを含むかチェック
-                        if "再入荷通知希望" in item_text or "販売開始通知希望" in item_text:
+                        # 販売開始通知希望の場合（15:00-18:00の時間帯）
+                        if "販売開始通知希望" in item_text and time_text.startswith(("15:", "16:", "17:")):
+                            status = "🔒"  # 鍵アイコン（未解放状態）
+                        # 再入荷通知希望の場合は完売
+                        elif "再入荷通知希望" in item_text or "販売開始通知希望" in item_text:
                             status = "×"  # 完売
                         else:
                             # 残り1点かどうかをチェック
@@ -52,11 +47,10 @@ async def get_inventory_status(url, session):
                         time_slots[time_text] = status
                 
                 return time_slots
-            return {}  # エラー時は空の辞書を返す
+            return {}
     except Exception as e:
         print(f"エラーが発生しました: {e}")
         return {}
-
 async def get_inventory_with_progress(member_urls, member_names, progress_bar, status_text):
     """
     並列処理で在庫状況を取得（通常枠と最終枠の両方）
