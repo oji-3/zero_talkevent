@@ -4,6 +4,7 @@
 import asyncio
 import aiohttp
 from bs4 import BeautifulSoup
+from utils.time_utils import is_early_time_slot, is_regular_time_slot, is_after_final_slot_deadline
 
 
 async def get_inventory_status(url, session):
@@ -18,6 +19,9 @@ async def get_inventory_status(url, session):
         dict: 時間帯と在庫状況のマッピング
     """
     try:
+        if url is None:  # U17メンバーの最終枠URLがNoneの場合
+            return {}
+            
         async with session.get(url) as response:
             if response.status == 200:
                 html = await response.text()
@@ -51,12 +55,12 @@ async def get_inventory_status(url, session):
         return {}
 
 
-async def get_inventory_with_progress(urls, member_names, progress_bar, status_text):
+async def get_inventory_with_progress(member_urls, member_names, progress_bar, status_text):
     """
-    並列処理で在庫状況を取得
+    並列処理で在庫状況を取得（通常枠と最終枠の両方）
     
     Args:
-        urls (list): 在庫情報を取得するURLのリスト
+        member_urls (dict): メンバー名と通常枠/最終枠URLの辞書
         member_names (list): メンバー名のリスト
         progress_bar (streamlit.progress): 進捗バー
         status_text (streamlit.empty): 状態テキスト
@@ -64,16 +68,40 @@ async def get_inventory_with_progress(urls, member_names, progress_bar, status_t
     Returns:
         dict: メンバー名と在庫情報のマッピング
     """
+    # 日本時間2025年3月25日23:59を過ぎているか確認
+    use_final_slots = not is_after_final_slot_deadline()
+    
     async with aiohttp.ClientSession() as session:
-        total = len(urls)
+        # 通常枠と最終枠両方のURLリストを作成
+        urls_to_fetch = []
+        url_type_map = []  # URL種別のマッピング（通常枠か最終枠か）
+        member_url_map = []  # どのメンバーのどの種別のURLか
+        
+        for member_name in member_names:
+            member_url_dict = member_urls.get(member_name, {})
+            # 通常枠URL
+            normal_url = member_url_dict.get("normal")
+            if normal_url:
+                urls_to_fetch.append(normal_url)
+                url_type_map.append("normal")
+                member_url_map.append(member_name)
+            
+            # 最終枠URL（日付チェックに基づいて処理）
+            if use_final_slots:
+                final_url = member_url_dict.get("final")
+                if final_url:
+                    urls_to_fetch.append(final_url)
+                    url_type_map.append("final")
+                    member_url_map.append(member_name)
+        
+        total = len(urls_to_fetch)
         completed = 0
         results = []
         
         # タスクのチャンク作成（55並列）
         chunk_size = 55
         for i in range(0, total, chunk_size):
-            chunk_urls = urls[i:i+chunk_size]
-            chunk_members = member_names[i:i+chunk_size]
+            chunk_urls = urls_to_fetch[i:i+chunk_size]
             
             # 進捗状況表示の更新
             status_text.info(f"在庫情報を取得中です... {completed}/{total} 完了 ({int(completed/total*100)}%)")
@@ -92,9 +120,52 @@ async def get_inventory_with_progress(urls, member_names, progress_bar, status_t
         
         # 結果を辞書にまとめる
         inventory_data = {}
+        final_slot_data = {}  # 最終枠の在庫情報を一時保存
+        
         for i, result in enumerate(results):
-            if i < len(member_names):
-                inventory_data[member_names[i]] = result
+            member_name = member_url_map[i]
+            url_type = url_type_map[i]
+            
+            if url_type == "normal":
+                # 通常枠のデータ
+                if member_name not in inventory_data:
+                    inventory_data[member_name] = result
+            else:
+                # 最終枠のデータ
+                final_slot_data[member_name] = result
+        
+        # 日付チェックに基づいて最終枠の処理を行う
+        if use_final_slots:
+            # 通常枠の後ろ4枠を最終枠のデータで塗り替え
+            for member_name, final_data in final_slot_data.items():
+                # 最終枠の状態を確認
+                final_sold_out = False
+                has_final_data = False
+                
+                # 最終枠のデータがあれば、完売状態を確認
+                if final_data:
+                    has_final_data = True
+                    # 最終枠のすべての時間帯が完売（×）かチェック
+                    all_slots_sold_out = all(status == "×" for status in final_data.values())
+                    # 少なくとも1つの時間帯が完売（×）かチェック
+                    any_slot_sold_out = any(status == "×" for status in final_data.values())
+                    
+                    final_sold_out = all_slots_sold_out
+                
+                # 通常枠のデータがあれば、後ろ4枠を修正
+                if member_name in inventory_data and has_final_data:
+                    # 後ろ4枠の時間帯を特定（21:00以降）
+                    normal_data = inventory_data[member_name]
+                    
+                    for time_slot in list(normal_data.keys()):
+                        # 21:00以降の枠を特定
+                        if time_slot.startswith("21:"):
+                            if final_sold_out:
+                                # 最終枠が完売していれば、×で上書き
+                                normal_data[time_slot] = "×"
+                            else:
+                                # 最終枠が完売していなければ、◎で上書き
+                                normal_data[time_slot] = "◎"
         
         # 完了表示
         status_text.success(f"在庫情報の取得が完了しました！ {total}/{total} 完了 (100%)")
@@ -187,6 +258,3 @@ def calculate_member_sales_count(member_names, inventory_data, sorted_time_slots
         member_sales_count[member_name] = sold_count
     
     return member_sales_count
-
-# 時間ユーティリティの関数をimport
-from utils.time_utils import is_early_time_slot

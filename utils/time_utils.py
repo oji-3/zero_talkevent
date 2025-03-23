@@ -1,6 +1,8 @@
 """
 時間帯の処理を行うユーティリティ関数
 """
+from datetime import datetime
+import pytz
 
 
 def is_early_time_slot(time_slot):
@@ -79,3 +81,21 @@ def sort_time_slots(time_slots):
         return 0
     
     return sorted(list(time_slots), key=parse_time_range)
+
+
+def is_after_final_slot_deadline():
+    """
+    現在の日時が日本時間2025年3月25日23:59を過ぎているかどうかをチェックする
+    
+    Returns:
+        bool: 指定した日時を過ぎている場合はTrue
+    """
+    # 日本時間の現在時刻を取得
+    jst = pytz.timezone('Asia/Tokyo')
+    now = datetime.now(jst)
+    
+    # 基準日時 (2025年3月25日23:59:59)
+    deadline = datetime(2025, 3, 25, 23, 59, 59, tzinfo=jst)
+    
+    # 現在時刻が基準日時を過ぎているかチェック
+    return now > deadline

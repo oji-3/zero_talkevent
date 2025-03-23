@@ -66,10 +66,25 @@ def parse_member_groups():
         if line in ["Z1", "Z2", "Z3", "Z4", "Z5", "U17"]:
             current_group = line
         elif line and current_group:
-            parts = line.split(',', 1)
-            if len(parts) == 2:
-                url, member_name = parts
-                member_info = {"url": url, "name": member_name}
+            parts = line.split(',')
+            if current_group == "U17" and len(parts) == 2:
+                # U17は通常枠URLのみ
+                normal_url, member_name = parts
+                member_info = {
+                    "normal_url": normal_url, 
+                    "final_url": None,  # U17は最終枠なし
+                    "name": member_name
+                }
+                member_groups[current_group].append(member_info)
+                member_groups["すべて"].append(member_info)
+            elif len(parts) == 3:
+                # Z1-Z5は通常枠URLと最終枠URLがある
+                normal_url, final_url, member_name = parts
+                member_info = {
+                    "normal_url": normal_url, 
+                    "final_url": final_url, 
+                    "name": member_name
+                }
                 member_groups[current_group].append(member_info)
                 member_groups["すべて"].append(member_info)
     
@@ -78,18 +93,21 @@ def parse_member_groups():
 
 def create_member_url_map(member_groups):
     """
-    メンバー名とURLの辞書を作成
+    メンバー名とURL（通常枠と最終枠）の辞書を作成
     
     Args:
         member_groups (dict): グループごとのメンバー情報
         
     Returns:
-        dict: メンバー名をキー、URLを値とする辞書
+        dict: メンバー名をキー、URLの辞書を値とする辞書
     """
     member_urls = {}
     for member_list in member_groups.values():
         for member in member_list:
-            member_urls[member["name"]] = member["url"]
+            member_urls[member["name"]] = {
+                "normal": member["normal_url"],
+                "final": member["final_url"]
+            }
     
     return member_urls
 

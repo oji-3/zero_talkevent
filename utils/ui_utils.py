@@ -3,6 +3,20 @@ UI表示やHTMLテーブル生成に関する関数
 """
 from utils.time_utils import is_early_time_slot, is_regular_time_slot, is_all_regular_slots_sold_out
 
+def format_time_slot_display(time_slot):
+    """
+    時間枠の表示形式を「XX:XX-XX:XX」から「XX:XX」（開始時刻のみ）に変換
+    
+    Args:
+        time_slot (str): 元の時間枠文字列（例: "15:00-15:15"）
+        
+    Returns:
+        str: 開始時刻のみの文字列（例: "15:00"）
+    """
+    if '-' in time_slot:
+        return time_slot.split('-')[0].strip()
+    return time_slot
+
 def generate_table_html(filtered_members, sorted_time_slots, inventory_data, member_urls, 
                         member_groups_map, sold_out_counts, crowded_time_slots, member_sales_count):
     """
@@ -27,7 +41,7 @@ def generate_table_html(filtered_members, sorted_time_slots, inventory_data, mem
     # フィルター用のメンバー名リスト
     filtered_member_names = [member["name"] for member in filtered_members]
     
-    # カスタムテーブルスタイルを適用したdiv要素
+    # テーブルHTMLを生成
     html = """
     <div class="table-scroll-container">
         <table class="inventory-table">
@@ -63,7 +77,9 @@ def generate_table_html(filtered_members, sorted_time_slots, inventory_data, mem
     html += "<tbody>"
     
     for member_name in filtered_member_names:
-        member_url = member_urls.get(member_name, "#")
+        # メンバーのURLを取得（通常枠と最終枠の両方）
+        member_url_dict = member_urls.get(member_name, {})
+        normal_url = member_url_dict.get("normal", "#")
         member_group = member_groups_map.get(member_name, "")
         is_u17_member = (member_group == "U17")
         
@@ -75,7 +91,7 @@ def generate_table_html(filtered_members, sorted_time_slots, inventory_data, mem
         
         html += f'<td class="member-cell">'
         html += f'<div class="member-name-container">'
-        html += f'<a href="{member_url}" target="_blank" class="member-link">{formatted_name}</a>'
+        html += f'<a href="{normal_url}" target="_blank" class="member-link">{formatted_name}</a>'
         html += f'<span class="member-sales-count">{sales_count}</span>'
         html += f'</div></td>'
         
@@ -87,11 +103,17 @@ def generate_table_html(filtered_members, sorted_time_slots, inventory_data, mem
             status = member_data.get(time_slot, "")
             
             if not is_u17_member and is_early_time_slot(time_slot) and status == "×" and not all_regular_slots_sold:
+                # 早い時間帯で18:00以降が全部売れていない場合は未解放枠
                 display_status = "🔒"
                 status_class = "locked"
             else:
-                display_status = status
-                status_class = "sold-out" if status == "×" else "last-one" if status == "⚪︎" else ""
+                # ◎ と ○ を統一して表示 - 全て ○ に統一
+                if status == "◎" or status == "⚪︎" or status == "○":
+                    display_status = "○"
+                else:
+                    display_status = status
+                
+                status_class = "sold-out" if status == "×" else "last-one" if status == "⚪︎" or status == "◎" or status == "○" else ""
             
             html += f'<td class="status-cell {status_class}">{display_status}</td>'
         
@@ -99,164 +121,7 @@ def generate_table_html(filtered_members, sorted_time_slots, inventory_data, mem
     
     html += "</tbody></table></div>"
     
-    # 固定ヘッダーをサポートするためのインラインCSS
-    inline_css = """
-    <style>
-        .table-scroll-container {
-            position: relative;
-            width: 100%;
-            overflow: auto;
-            max-height: 80vh;
-        }
-        
-        .inventory-table {
-            border-collapse: separate;
-            border-spacing: 0;
-            width: 100%;
-            border: 1px solid #ddd;
-        }
-        
-        .inventory-table th, 
-        .inventory-table td {
-            border: 1px solid #ddd;
-            padding: 8px;
-            background-color: white;
-        }
-        
-        /* 時間ヘッダー (上端) */
-        .time-header {
-            position: sticky;
-            top: 0;
-            background-color: #f2f2f2 !important;
-            z-index: 10;
-            min-width: 65px;
-            text-align: center;
-        }
-        
-        /* メンバー名セル (左端) */
-        .member-cell {
-            position: sticky;
-            left: 0;
-            background-color: #f2f2f2 !important;
-            z-index: 1;
-            min-width: 120px;
-            max-width: 120px;
-            padding: 0 8px; /* 内側のパディングを調整 */
-            height: 64px; /* 高さを固定 */
-        }
-        
-        /* メンバー名のコンテナ - 縦方向中央揃え */
-        .member-name-container {
-            display: flex;
-            align-items: center; /* 垂直方向中央揃え */
-            justify-content: space-between; /* 名前と数字を左右に配置 */
-            height: 100%;
-            width: 100%;
-        }
-        
-        /* 左上の角のセル */
-        .corner-header {
-            position: sticky;
-            top: 0;
-            left: 0;
-            background-color: #f2f2f2 !important;
-            z-index: 100;
-            min-width: 120px;
-            max-width: 120px;
-            text-align: center;
-        }
-        
-        /* 状態セル */
-        .status-cell {
-            text-align: center;
-            font-size: 20px;
-            min-width: 65px;
-            vertical-align: middle;
-            line-height: 1;
-        }
-        
-        /* ステータスアイコン */
-        .sold-out { color: #dc3545; }
-        .last-one { color: #198754; }
-        .locked { color: #6c757d; font-size: 22px; }
-        
-        /* ラベル */
-        .crowded-label { color: #fd7e14; font-weight: bold; }
-        
-        .sold-out-count {
-            display: block;
-            font-size: 11px;
-            font-weight: bold;
-            background-color: #212529;
-            color: white;
-            padding: 2px 4px;
-            border-radius: 4px;
-            margin-top: 4px;
-            text-align: center;
-        }
-        
-        .sold-out-count.crowded {
-            background-color: #fd7e14;
-            color: black;
-        }
-        
-        .member-sales-count {
-            display: inline-block;
-            font-size: 11px;
-            font-weight: bold;
-            background-color: #212529;
-            color: white;
-            padding: 2px 5px;
-            border-radius: 4px;
-            margin-left: 5px;
-        }
-        
-        .member-link {
-            color: #212529;
-            text-decoration: none;
-            font-weight: bold;
-            display: inline-block;
-            max-width: 90px;
-            word-wrap: break-word;
-        }
-        
-        .member-link:hover {
-            color: #0d6efd;
-            text-decoration: underline;
-        }
-    </style>
-    """
-    
-    return inline_css + html
-
-
-def format_time_slot_display(time_slot):
-    """
-    時間枠の表示形式を「XX:XX-XX:XX」から「XX:XX」（開始時刻のみ）に変換
-    
-    Args:
-        time_slot (str): 元の時間枠文字列（例: "15:00-15:15"）
-        
-    Returns:
-        str: 開始時刻のみの文字列（例: "15:00"）
-    """
-    if '-' in time_slot:
-        return time_slot.split('-')[0].strip()
-    return time_slot
-
-def format_time_slot_display(time_slot):
-    """
-    時間枠の表示形式を「XX:XX-XX:XX」から「XX:XX」（開始時刻のみ）に変換
-    
-    Args:
-        time_slot (str): 元の時間枠文字列（例: "15:00-15:15"）
-        
-    Returns:
-        str: 開始時刻のみの文字列（例: "15:00"）
-    """
-    if '-' in time_slot:
-        return time_slot.split('-')[0].strip()
-    return time_slot
+    return html
 
 def determine_crowded_time_slots(sorted_time_slots, sold_out_counts, members_sold_all_regular_slots):
     """
@@ -280,7 +145,6 @@ def determine_crowded_time_slots(sorted_time_slots, sold_out_counts, members_sol
             crowded_time_slots[time_slot] = (sold_out_counts[time_slot] >= 15)
     
     return crowded_time_slots
-
 
 def count_members_sold_all_regular_slots(inventory_data, sorted_time_slots, is_all_regular_slots_sold_out):
     """
