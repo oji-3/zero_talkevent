@@ -40,7 +40,7 @@ def parse_member_groups():
     """
     member.csv からメンバー情報を読み込んで、グループごとに格納する
     CSVの形式:
-    15min,1hour,name,league
+    1hour,15min,name,league
     
     Returns:
         dict: グループ名をキー、メンバー情報リストを値とする辞書
@@ -69,39 +69,34 @@ def parse_member_groups():
             # カンマで分割
             parts = line.strip().split(',')
             
-            # U17メンバーの検出
-            if "U17" in line:
-                # U17の形式: normal_url,,name,U17
-                if len(parts) >= 4:
-                    normal_url = parts[0]
-                    name = parts[2]
-                    league = "U17"
-                    final_url = None
+            if len(parts) >= 4:
+                name = parts[2]
+                league = parts[3]
+                
+                if league == "U17":
+                    # U17メンバーは15min URL (通常枠)のみを持つ
+                    # U17の形式: 15min_url,,name,U17
+                    normal_url = parts[0] if parts[0].strip() else None  # 15min URL
+                    final_url = None  # U17メンバーは最終枠を持たない
                 else:
-                    print(f"U17メンバーのデータが不正: {line}")
-                    continue
+                    # 通常メンバーの形式: 1hour_url,15min_url,name,league
+                    final_url = parts[0] if parts[0].strip() else None  # 1hour URL (最終枠)
+                    normal_url = parts[1] if parts[1].strip() else None  # 15min URL (通常枠)
+                
+                # メンバー情報を作成
+                member_info = {
+                    "normal_url": normal_url,
+                    "final_url": final_url,
+                    "name": name
+                }
+                
+                # リーグごとのリストに追加
+                if league in member_groups:
+                    member_groups[league].append(member_info)
+                    member_groups["すべて"].append(member_info)
             else:
-                # 通常メンバーの形式: final_url,normal_url,name,league
-                if len(parts) >= 4:
-                    final_url = parts[0] if parts[0].strip() else None
-                    normal_url = parts[1] if parts[1].strip() else None
-                    name = parts[2]
-                    league = parts[3]
-                else:
-                    print(f"通常メンバーのデータが不正: {line}")
-                    continue
-            
-            # メンバー情報を作成
-            member_info = {
-                "normal_url": normal_url,
-                "final_url": final_url,
-                "name": name
-            }
-            
-            # リーグごとのリストに追加
-            if league in member_groups:
-                member_groups[league].append(member_info)
-                member_groups["すべて"].append(member_info)
+                print(f"メンバーデータが不正: {line}")
+                continue
         
         return member_groups
     
