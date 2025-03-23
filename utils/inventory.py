@@ -104,8 +104,8 @@ async def get_inventory_with_progress(member_urls, member_names, progress_bar, s
             chunk_urls = urls_to_fetch[i:i+chunk_size]
             
             # 進捗状況表示の更新
-            status_text.info(f"在庫情報を取得中です... {completed}/{total} 完了 ({int(completed/total*100)}%)")
-            
+            status_text.info(f"在庫情報を取得中です... ({int(completed/total*100)}%)")
+
             # チャンク内のタスクを実行
             tasks = [get_inventory_status(url, session) for url in chunk_urls]
             chunk_results = await asyncio.gather(*tasks)
