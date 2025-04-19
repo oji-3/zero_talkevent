@@ -62,17 +62,7 @@ def is_all_regular_slots_sold_out(member_data, sorted_time_slots):
 
 
 def sort_time_slots(time_slots):
-    """
-    時間帯を開始時間でソートする
-    
-    Args:
-        time_slots (set): 時間帯の集合
-        
-    Returns:
-        list: ソートされた時間帯のリスト
-    """
     def parse_time_range(time_range):
-        # "15:00-15:15" 形式の時間帯から開始時間を取得してソート
         if '-' in time_range:
             start_time = time_range.split('-')[0].strip()
             if ':' in start_time:
@@ -84,18 +74,9 @@ def sort_time_slots(time_slots):
 
 
 def is_after_final_slot_deadline():
-    """
-    現在の日時が日本時間2025年3月25日23:59を過ぎているかどうかをチェックする
-    
-    Returns:
-        bool: 指定した日時を過ぎている場合はTrue
-    """
-    # 日本時間の現在時刻を取得
     jst = pytz.timezone('Asia/Tokyo')
     now = datetime.now(jst)
     
-    # 基準日時 (2025年3月25日23:59:59)
-    deadline = datetime(2025, 3, 25, 23, 59, 59, tzinfo=jst)
+    deadline = datetime(2025, 4, 21, 23, 59, 59, tzinfo=jst)
     
-    # 現在時刻が基準日時を過ぎているかチェック
     return now > deadline
