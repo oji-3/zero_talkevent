@@ -51,6 +51,7 @@ async def get_inventory_status(url, session):
     except Exception as e:
         print(f"エラーが発生しました: {e}")
         return {}
+
 async def get_inventory_with_progress(member_urls, member_names, progress_bar, status_text):
     """
     並列処理で在庫状況を取得（通常枠と最終枠の両方）
@@ -94,7 +95,7 @@ async def get_inventory_with_progress(member_urls, member_names, progress_bar, s
         completed = 0
         results = []
         
-        chunk_size = 55
+        chunk_size = 40
         for i in range(0, total, chunk_size):
             chunk_urls = urls_to_fetch[i:i+chunk_size]
             
