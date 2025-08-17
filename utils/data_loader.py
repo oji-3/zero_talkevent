@@ -38,22 +38,16 @@ def format_member_name(name):
 
 def parse_member_groups():
     """
-    member.csv からメンバー情報を読み込んで、グループごとに格納する
+    members.csv からメンバー情報を読み込んで、グループごとに格納する
     CSVの形式:
-    1hour,15min,name,league
+    1hour,15min,name,group
     
     Returns:
         dict: グループ名をキー、メンバー情報リストを値とする辞書
     """
-    # グループ構造の初期化
+    # グループ構造の初期化（すべてグループは維持）
     member_groups = {
-        "すべて": [],
-        "Z1": [],
-        "Z2": [],
-        "Z3": [],
-        "Z4": [],
-        "Z5": [],
-        "U17": []
+        "すべて": []
     }
     
     try:
@@ -71,17 +65,11 @@ def parse_member_groups():
             
             if len(parts) >= 4:
                 name = parts[2]
-                league = parts[3]
+                group = parts[3]
                 
-                if league == "U17":
-                    # U17メンバーは15min URL (通常枠)のみを持つ
-                    # U17の形式: 15min_url,,name,U17
-                    normal_url = parts[0] if parts[0].strip() else None  # 15min URL
-                    final_url = None  # U17メンバーは最終枠を持たない
-                else:
-                    # 通常メンバーの形式: 1hour_url,15min_url,name,league
-                    final_url = parts[0] if parts[0].strip() else None  # 1hour URL (最終枠)
-                    normal_url = parts[1] if parts[1].strip() else None  # 15min URL (通常枠)
+                # URL情報を取得（現在のCSVフォーマットは1hour,15min,name,group）
+                final_url = parts[0] if parts[0].strip() else None  # 1hour URL (最終枠)
+                normal_url = parts[1] if parts[1].strip() else None  # 15min URL (通常枠)
                 
                 # メンバー情報を作成
                 member_info = {
@@ -90,10 +78,13 @@ def parse_member_groups():
                     "name": name
                 }
                 
-                # リーグごとのリストに追加
-                if league in member_groups:
-                    member_groups[league].append(member_info)
-                    member_groups["すべて"].append(member_info)
+                # グループが存在しない場合は新規作成
+                if group not in member_groups:
+                    member_groups[group] = []
+                
+                # グループごとのリストに追加
+                member_groups[group].append(member_info)
+                member_groups["すべて"].append(member_info)
             else:
                 print(f"メンバーデータが不正: {line}")
                 continue

@@ -7,9 +7,9 @@ import pytz
 # カスタムモジュールのインポート
 from styles.styles import load_css
 from utils.data_loader import parse_member_groups, create_member_url_map, create_member_group_map
-from utils.time_utils import is_early_time_slot, is_regular_time_slot, is_all_regular_slots_sold_out, sort_time_slots, is_after_final_slot_deadline
+from utils.time_utils import sort_time_slots, is_after_final_slot_deadline
 from utils.inventory import get_inventory_with_progress, calculate_sold_out_counts, calculate_member_sales_count
-from utils.ui_utils import generate_table_html, determine_crowded_time_slots, count_members_sold_all_regular_slots
+from utils.ui_utils import generate_table_html, determine_crowded_time_slots
 
 # ページの設定
 st.set_page_config(
@@ -127,7 +127,7 @@ def main():
             <span class="legend-item"><span style="color: #fd7e14; font-weight: bold;">オレンジ</span> : 混雑(15人以上)</span>
             <span class="legend-item"><span style="color: #6c757d;">🔒</span> : 未解放</span>
             <span class="legend-item"><span style="color: #dc3545;">×</span> : 完売</span>
-            <span class="legend-item"><span style="color: #198754;">⚪︎</span> : 残りわずか</span>
+            <span class="legend-item"><span style="color: #198754;">⚪︎</span> : 購入可能</span>
         </div>""", unsafe_allow_html=True)
         
         # フィルター用のメンバー名リスト
@@ -142,36 +142,22 @@ def main():
         # メンバー名からグループを取得するための辞書を作成
         member_groups_map = create_member_group_map(member_groups)
         
-        # 特殊制御のための「18:00-18:15」〜「21:45-22:00」までの枠をすべて売った人のカウント
-        members_sold_all_regular_slots = count_members_sold_all_regular_slots(
-            st.session_state.inventory_data_all, 
-            sorted_time_slots, 
-            is_all_regular_slots_sold_out
-        )
-
         # 時間帯ごとの完売数をカウント
         sold_out_counts = calculate_sold_out_counts(
             st.session_state.inventory_data_all, 
-            sorted_time_slots, 
-            member_groups_map, 
-            is_all_regular_slots_sold_out
+            sorted_time_slots
         )
 
         # 混雑時間帯の判定
         crowded_time_slots = determine_crowded_time_slots(
             sorted_time_slots, 
-            sold_out_counts, 
-            members_sold_all_regular_slots
+            sold_out_counts
         )
 
         # メンバーごとの売上数を計算
         member_sales_count = calculate_member_sales_count(
             filtered_member_names, 
-            st.session_state.inventory_data_all, 
-            sorted_time_slots, 
-            member_groups_map,
-            is_all_regular_slots_sold_out, 
-            is_early_time_slot
+            st.session_state.inventory_data_all
         )
 
         # HTMLテーブルを生成して表示

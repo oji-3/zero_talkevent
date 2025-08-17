@@ -24,10 +24,10 @@ def extract_member_info(html_content):
         title_element = a_element.find('p', class_='items-grid_itemTitleText_5c97110f')
         if title_element:
             title_text = title_element.text
-            # "【Z1-A】白咲 ひとみ トークイベント" や "【U17】名前 トークイベント" からコードと名前を抽出
-            match = re.search(r'【([ZU]\d+)[-A-Z]*】(.*?) トークイベント', title_text)
+            # "【まぶだちゅ！】白咲 ひとみ トークイベント" や "【研究生】名前 トークイベント" からグループ名と名前を抽出
+            match = re.search(r'【(.+?)】(.*?) トークイベント', title_text)
             if match:
-                member_code = match.group(1)  # Z1などのコード部分
+                member_code = match.group(1)  # グループ名部分
                 member_name = match.group(2)  # 名前部分
                 members.append((url, member_name, member_code))
                 logging.info(f"{idx}番目のメンバー: {member_name} ({member_code}) - {url} を抽出しました。")
@@ -46,7 +46,7 @@ def save_to_csv(members, filename='member_urls.csv'):
     logging.info(f"CSVファイル {filename} への保存を開始します。")
     with open(filename, 'w', newline='', encoding='utf-8') as f:
         writer = csv.writer(f)
-        writer.writerow(['URL', 'メンバー名', 'コード'])
+        writer.writerow(['URL', 'メンバー名', 'グループ'])
         writer.writerows(members)
     logging.info(f"{len(members)}人のメンバー情報を {filename} に保存しました。")
 
@@ -95,8 +95,8 @@ def merge_duplicates(input_file, output_file='members.csv'):
     try:
         with open(output_file, 'w', encoding='utf-8', newline='') as f:
             writer = csv.writer(f)
-            # ヘッダー：1列目にURL（最初のURL）、2列目に1hour（2番目のURL）、3列目に名前、4列目にリーグコード
-            writer.writerow(['1hour', '15min', 'name', 'league'])
+            # ヘッダー：1列目にURL（最初のURL）、2列目に1hour（2番目のURL）、3列目に名前、4列目にグループ名
+            writer.writerow(['1hour', '15min', 'name', 'group'])
             
             # 辞書からデータを取り出して書き込む
             for name, data in member_dict.items():
