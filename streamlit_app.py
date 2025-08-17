@@ -98,7 +98,7 @@ def main():
         status_placeholder.empty()
     
     # フィルターUI
-    st.markdown('<div class="filter-label">リーグで絞り込む:</div>', unsafe_allow_html=True)
+    st.markdown('<div class="filter-label">グループで絞り込む:</div>', unsafe_allow_html=True)
     selected_group = st.selectbox(
         label="リーグ選択",
         options=list(member_groups.keys()),
@@ -175,7 +175,7 @@ def main():
         st.markdown(table_html, unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
     else:
-        st.warning(f"選択されたリーグ '{selected_group}' にはメンバーがいません。")
+        st.warning(f"選択されたグループ '{selected_group}' にはメンバーがいません。")
 
 if __name__ == "__main__":
     main()
