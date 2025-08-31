@@ -80,3 +80,13 @@ def is_after_final_slot_deadline():
     deadline = datetime(2025, 9, 7, 23, 59, 59, tzinfo=jst)
     
     return now > deadline
+
+
+def is_after_sale_start():
+    jst = pytz.timezone('Asia/Tokyo')
+    now = datetime.now(jst)
+    
+    # 発売開始日時を定義
+    sale_start = datetime(2025, 9, 1, 22, 0, 0, tzinfo=jst)
+    
+    return now >= sale_start

@@ -7,7 +7,7 @@ import pytz
 # カスタムモジュールのインポート
 from styles.styles import load_css
 from utils.data_loader import parse_member_groups, create_member_url_map, create_member_group_map
-from utils.time_utils import sort_time_slots, is_after_final_slot_deadline
+from utils.time_utils import sort_time_slots, is_after_final_slot_deadline, is_after_sale_start
 from utils.inventory import get_inventory_with_progress, calculate_sold_out_counts, calculate_member_sales_count
 from utils.ui_utils import generate_table_html, determine_crowded_time_slots
 
@@ -26,6 +26,10 @@ jst = pytz.timezone('Asia/Tokyo')
 
 # アプリのヘッダー
 st.markdown('<div class="header"><h1>完売表</h1></div>', unsafe_allow_html=True)
+
+# 発売開始チェック
+if not is_after_sale_start():
+    st.warning("🕐 発売開始前です。全枠が未開放状態で表示されます。")
 
 # セッション状態の初期化関数
 def initialize_session_state():

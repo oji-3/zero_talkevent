@@ -4,7 +4,7 @@
 import asyncio
 import aiohttp
 from bs4 import BeautifulSoup
-from utils.time_utils import is_after_final_slot_deadline
+from utils.time_utils import is_after_final_slot_deadline, is_after_sale_start
 
 
 async def get_inventory_status(url, session):
@@ -62,6 +62,17 @@ async def get_inventory_with_progress(member_urls, member_names, progress_bar, s
     Returns:
         dict: メンバー名と在庫情報のマッピング
     """
+    # 発売開始チェック
+    if not is_after_sale_start():
+        # 発売前は全枠を未開放として返す
+        inventory_data = {}
+        for member_name in member_names:
+            inventory_data[member_name] = {}
+        
+        progress_bar.progress(1.0)
+        status_text.info("発売開始前です。全枠が未開放です。")
+        return inventory_data
+    
     # 鍵閉め締切チェック
     use_final_slots = not is_after_final_slot_deadline()
     
