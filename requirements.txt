@@ -9,3 +9,4 @@ flask
 plotly
 pytz
 aiohttp
+requests
