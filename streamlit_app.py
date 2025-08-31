@@ -27,10 +27,6 @@ jst = pytz.timezone('Asia/Tokyo')
 # アプリのヘッダー
 st.markdown('<div class="header"><h1>完売表</h1></div>', unsafe_allow_html=True)
 
-# 発売開始チェック
-if not is_after_sale_start():
-    st.warning("🕐 発売開始前です。全枠が未開放状態で表示されます。")
-
 # セッション状態の初期化関数
 def initialize_session_state():
     """

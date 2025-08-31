@@ -97,13 +97,19 @@ def generate_table_html(filtered_members, sorted_time_slots, inventory_data, mem
         for time_slot in sorted_time_slots:
             status = member_data.get(time_slot, "")
             
-            # ◎ と ○ を統一して表示 - 全て ○ に統一
+            # ステータスの表示とクラス設定
             if status == "◎" or status == "⚪︎" or status == "○":
                 display_status = "○"
+                status_class = "last-one"
+            elif status == "×":
+                display_status = status
+                status_class = "sold-out"
+            elif status == "🔒":
+                display_status = status
+                status_class = "locked"
             else:
                 display_status = status
-            
-            status_class = "sold-out" if status == "×" else "last-one" if status == "⚪︎" or status == "◎" or status == "○" else ""
+                status_class = ""
             
             html += f'<td class="status-cell {status_class}">{display_status}</td>'
         
