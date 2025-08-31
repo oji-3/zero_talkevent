@@ -62,7 +62,7 @@ async def get_inventory_with_progress(member_urls, member_names, progress_bar, s
     Returns:
         dict: メンバー名と在庫情報のマッピング
     """
-    # 日本時間2025年3月25日23:59を過ぎているか確認
+    # 鍵閉め締切チェック
     use_final_slots = not is_after_final_slot_deadline()
     
     async with aiohttp.ClientSession() as session:

@@ -77,6 +77,6 @@ def is_after_final_slot_deadline():
     jst = pytz.timezone('Asia/Tokyo')
     now = datetime.now(jst)
     
-    deadline = datetime(2025, 4, 21, 23, 59, 59, tzinfo=jst)
+    deadline = datetime(2025, 9, 7, 23, 59, 59, tzinfo=jst)
     
     return now > deadline
